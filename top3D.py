@@ -66,29 +66,29 @@ def lk_H8(nu):
     KE = 1/((nu+1)*(1-2*nu))*Ktot 
     return KE
 
-def display_3D(rho):
-    [nelz, nely, nelx] = np.shape(rho)
-    # USER DEFINED UNIT ELEMENT SIZE
-    hx = 1
-    hy = 1
-    hz = 1
-    face = np.array([[1, 2, 3, 4], [2, 6, 7, 3], [4, 3, 7, 8], [1, 5, 8, 4], [1, 2, 6, 5], [5, 6, 7, 8]])
-    fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
-    for k in range(nelz):
-        z = k * hz
-        for i in range(nelx):
-            x = i * hx
-            for j in range(nely):
-                y = nely * hy - j * hy
-                if rho[k, j, i] > 0.5: # USER DEFINED DISPLAY DENSITY THRESHOLD
-                    vert = np.array([[x, y, z], [x, y - hx, z], [x + hx, y - hx, z], [x + hx, y, z], [x, y, z + hx], [x, y - hx, z + hx], [x + hx, y - hx, z + hx], [x + hx, y, z + hx]])
-                    vert[:, [1, 2]] = vert[:, [2, 1]]
-                    vert[:, 1] = -vert[:, 1]
-                    colors = np.array([0.2+0.8 * (1 - rho(k, j, i)), 0.2+0.8 * (1 - rho(k, j, i)), 0.2+0.8 * (1 - rho(k, j, i))])                   
-                    pc = art3d.Poly3DCollection(vert[face], facecolors=colors, edgecolor='black')
-                    ax.add_collection(pc)
-    plt.show()
+# def display_3D(rho):
+#     [nelz, nely, nelx] = np.shape(rho)
+#     # USER DEFINED UNIT ELEMENT SIZE
+#     hx = 1
+#     hy = 1
+#     hz = 1
+#     face = np.array([[1, 2, 3, 4], [2, 6, 7, 3], [4, 3, 7, 8], [1, 5, 8, 4], [1, 2, 6, 5], [5, 6, 7, 8]])
+#     fig = plt.figure()
+#     ax = fig.add_subplot(projection='3d')
+#     for k in range(nelz):
+#         z = k * hz
+#         for i in range(nelx):
+#             x = i * hx
+#             for j in range(nely):
+#                 y = nely * hy - j * hy
+#                 if rho[k, j, i] > 0.5: # USER DEFINED DISPLAY DENSITY THRESHOLD
+#                     vert = np.array([[x, y, z], [x, y - hx, z], [x + hx, y - hx, z], [x + hx, y, z], [x, y, z + hx], [x, y - hx, z + hx], [x + hx, y - hx, z + hx], [x + hx, y, z + hx]])
+#                     vert[:, [1, 2]] = vert[:, [2, 1]]
+#                     vert[:, 1] = -vert[:, 1]
+#                     colors = np.array([0.2+0.8 * (1 - rho(k, j, i)), 0.2+0.8 * (1 - rho(k, j, i)), 0.2+0.8 * (1 - rho(k, j, i))])                   
+#                     pc = art3d.Poly3DCollection(vert[face], facecolors=colors, edgecolor='black')
+#                     ax.add_collection(pc)
+#     plt.show()
 
 
 def main(nelx, nely, nelz, volfrac, penal, rmin):
@@ -140,8 +140,6 @@ def main(nelx, nely, nelz, volfrac, penal, rmin):
     sH = np.zeros(np.shape(iH))
     sHdummy = []
     k = 0
-    ### BEGIN TIMER #####
-    tic = time.time()
     #####################
     for k1 in np.arange(nelz)+1:
         for i1 in np.arange(nelx)+1:
@@ -163,8 +161,6 @@ def main(nelx, nely, nelz, volfrac, penal, rmin):
                                 # sH = np.append(sH, [[max(0, rmin - np.sqrt((i1 - i2)** 2 + (j1 - j2)** 2 + (k1 - k2)** 2))]], 0)
                                 sHdummy.append(max(0, rmin - np.sqrt((i1 - i2)** 2 + (j1 - j2)** 2 + (k1 - k2)** 2)))
                             k = k + 1
-    #### STOP TIMER ####
-    print(time.time()-tic)
     #####################
     iH = np.concatenate((iH, np.array(iHdummy).reshape((len(iHdummy), 1))))
     jH = np.concatenate((jH, np.array(jHdummy).reshape((len(jHdummy), 1))))
@@ -181,9 +177,11 @@ def main(nelx, nely, nelz, volfrac, penal, rmin):
     while change > tolx and loop < maxloop:
         loop = loop + 1
         # FE ANALYSIS
-        sK = np.reshape(np.ravel(KE, order='F')[np.newaxis].T @ (Emin+np.ravel(xPhys, order = 'F')[np.newaxis]**penal*(E0-Emin)),(24*24*nele,1),order='F')
+        sK = np.reshape(np.ravel(KE, order='F')[np.newaxis].T @ (Emin+xPhys.transpose(0,2,1).ravel(order='C')[np.newaxis]**penal*(E0-Emin)),(24*24*nele,1),order='F')
         K = sps.csr_matrix((np.squeeze(sK), (np.squeeze(iK.astype(int)) - 1, np.squeeze(jK.astype(int)) - 1)))
         K = (K + K.T) / 2
+        np.savetxt("output.csv", K.toarray(), delimiter=",")
+        np.savetxt("sK.csv", np.ravel(xPhys, order = 'C'), delimiter=",")
         U[freedofs - 1,:] = spsolve(K[freedofs - 1,:][:, freedofs - 1], F[freedofs - 1,:])[np.newaxis].T 
         # OBJECTIVE FUNCTION AND SENSITIVITY ANALYSIS
         ce = np.reshape(np.sum((U[edofMat - 1].squeeze() @ KE) * U[edofMat - 1].squeeze(), axis=1), (nelz, nelx, nely), order = 'C').transpose(0,2,1)
@@ -210,7 +208,7 @@ def main(nelx, nely, nelz, volfrac, penal, rmin):
         print("it.: {0} , ch.: {1:.3f}, obj.: {2:.4f}, Vol.: {3:.3f}".format(
             loop, change, c, np.mean(xPhys.transpose(0,2,1).ravel(order='C'))))
     # 3D PLOT
-    display_3D(xPhys)
+    # display_3D(xPhys)
 
 
 

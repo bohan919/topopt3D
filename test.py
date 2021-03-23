@@ -10,9 +10,9 @@ from matplotlib import colors
 # np.savetxt("output.csv", a_np_array, delimiter=",")
 
 import top3D
-nelx = 20
-nely = 10
-nelz = 5
+nelx = 5
+nely = 3
+nelz = 2
 volfrac = 0.3
 penal = 3
 rmin = 1.5
