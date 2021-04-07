@@ -95,7 +95,7 @@ def main(nelx, nely, nelz, volfrac, penal, rmin):
     baseplate = 'S'
     # USER DEFINED LOOP PARAMETERS
     maxloop = 200
-    tolx = 0.005
+    tolx = 0.01
     displayflag = 0
     # USER DEFINED MATERIAL PROPERTIES
     E0 = 1
@@ -201,7 +201,7 @@ def main(nelx, nely, nelz, volfrac, penal, rmin):
         # OPTIMALITY CRITERIA UPDATE
         l1 = 0
         l2 = 1e9
-        move = 0.01
+        move = 0.05
         while (l2 - l1) / (l1 + l2) > 1e-3:
             lmid = 0.5 * (l2 + l1)
             xnew_step1 = np.minimum(x + move, x * np.sqrt(-dc / dv / lmid))

@@ -45,9 +45,9 @@ def AMFilter(x, baseplate, *args):
 
     #AM Filter
     Ns = 3
-    Q = P + np.log(Ns)/np.log(xi_0)              # 5 replaces Ns
+    Q = P + np.log(Ns)/np.log(xi_0)             
     SHIFT = 100*np.finfo(float).tiny **(1/P)
-    BACKSHIFT = 0.95*Ns**(1/Q)*SHIFT**(P/Q)      # 5 replaces Ns
+    BACKSHIFT = 0.95*Ns**(1/Q)*SHIFT**(P/Q)     
     XiY = np.zeros((nelz, nely, nelx))
     XiX = np.zeros((nelz, nely, nelx))
     keepY = np.zeros((nelz, nely, nelx))
@@ -101,38 +101,38 @@ def AMFilter(x, baseplate, *args):
         dfxCol = deepcopy(list(args))
         dfxRow = deepcopy(list(args))
 
-        # from top to base layer:
-        for j in range(nelx):
-            varLambdaRow = np.zeros((nSens, nely))
+        # # from top to base layer:
+        # for j in range(nelx):
+        #     varLambdaRow = np.zeros((nSens, nely))
 
-            for i in range(nelz-1):
-                # smin sensitivity terms
-                dsmindx = 0.5*( 1-(x[i,:,j]-XiX[i,:,j])/sqX[i,:,j] )
-                dsmindXi = 1-dsmindx
-                # smax sensitivity terms
-                cbr = np.pad(xi[i,:,j],(1,1),'constant') + SHIFT
-                dmx = np.zeros((Ns,nely))
-                for s in range(Ns):
-                    dmx[s,:] = (P/Q)*keepX[i,:,j]**(1/Q-1)*cbr[0+s:nely+s:1]**(P-1)
-                # rearrange data for quick multiplication
-                qj = np.matlib.repmat([[-1],[0],[1]],nely,1)
-                qi = np.matlib.repmat(np.arange(nely)+1,3,1)
-                qi = np.ravel(qi, order='F')
-                qi = np.reshape(qi, (3*nely,1))
+        #     for i in range(nelz-1):
+        #         # smin sensitivity terms
+        #         dsmindx = 0.5*( 1-(x[i,:,j]-XiX[i,:,j])/sqX[i,:,j] )
+        #         dsmindXi = 1-dsmindx
+        #         # smax sensitivity terms
+        #         cbr = np.pad(xi[i,:,j],(1,1),'constant') + SHIFT
+        #         dmx = np.zeros((Ns,nely))
+        #         for s in range(Ns):
+        #             dmx[s,:] = (P/Q)*keepX[i,:,j]**(1/Q-1)*cbr[0+s:nely+s:1]**(P-1)
+        #         # rearrange data for quick multiplication
+        #         qj = np.matlib.repmat([[-1],[0],[1]],nely,1)
+        #         qi = np.matlib.repmat(np.arange(nely)+1,3,1)
+        #         qi = np.ravel(qi, order='F')
+        #         qi = np.reshape(qi, (3*nely,1))
 
-                qj = qj + qi
-                qs = np.ravel(dmx, order='F')[np.newaxis]
-                qsX, qsY = np.shape(qs)
-                qs = np.reshape(qs, (qsX*qsY,1))
-                dsmaxdxi = sps.csr_matrix( (np.squeeze(qs[1:len(qs)-1]), (np.squeeze(qi[1:len(qi)-1])-1,np.squeeze(qj[1:len(qj)-1])-1) ),dtype=np.float )
-                dsmaxdxi.eliminate_zeros()
-                for k in range(nSens):
-                    dfxRow[k][i,:,j] = (dsmindx*( dfxiRow[k][i,:,j]+varLambdaRow[k,:] ))[np.newaxis]
-                    varLambdaRow[k,:] = ( (dfxiRow[k][i,:,j]+varLambdaRow[k,:])*dsmindXi ) @ dsmaxdxi
-            # base layer
-            i = nelz
-            for k in range(nSens):
-                dfxRow[k][i - 1,:, j] = (dfxiRow[k][i - 1,:, j] + varLambdaRow[k,:])[np.newaxis]
+        #         qj = qj + qi
+        #         qs = np.ravel(dmx, order='F')[np.newaxis]
+        #         qsX, qsY = np.shape(qs)
+        #         qs = np.reshape(qs, (qsX*qsY,1))
+        #         dsmaxdxi = sps.csr_matrix( (np.squeeze(qs[1:len(qs)-1]), (np.squeeze(qi[1:len(qi)-1])-1,np.squeeze(qj[1:len(qj)-1])-1) ),dtype=np.float )
+        #         dsmaxdxi.eliminate_zeros()
+        #         for k in range(nSens):
+        #             dfxRow[k][i,:,j] = (dsmindx*( dfxiRow[k][i,:,j]+varLambdaRow[k,:] ))[np.newaxis]
+        #             varLambdaRow[k,:] = ( (dfxiRow[k][i,:,j]+varLambdaRow[k,:])*dsmindXi ) @ dsmaxdxi
+        #     # base layer
+        #     i = nelz
+        #     for k in range(nSens):
+        #         dfxRow[k][i - 1,:, j] = (dfxiRow[k][i - 1,:, j] + varLambdaRow[k,:])[np.newaxis]
 
         for j in range(nely):
             varLambdaCol = np.zeros((nSens, nelx))
@@ -165,13 +165,13 @@ def AMFilter(x, baseplate, *args):
             for k in range(nSens):
                 dfxCol[k][i - 1, j,:] = (dfxiCol[k][i - 1, j,:] + varLambdaCol[k,:])[np.newaxis]
        
-        dfx = [0.5*(dfxCol[i]+dfxRow[i]) for i in range(nSens)]
+        # dfx = [0.5*(dfxCol[i]+dfxRow[i]) for i in range(nSens)]
                 
     
     # ORIENTATION
     xi = np.rot90(xi,-nRot, axes=(0,2))
     varargout = ()
     for s in range(nSens):
-        varargout = varargout + (np.rot90(dfx[s],-nRot,axes=(0,2)) ,)
+        varargout = varargout + (np.rot90(dfxCol[s],-nRot,axes=(0,2)) ,)
 
     return xi, varargout

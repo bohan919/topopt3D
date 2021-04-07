@@ -14,9 +14,9 @@
 
 # import top3D
 import top3DAM
-nelx = 10
-nely = 10
-nelz = 4
+nelx = 30
+nely = 40
+nelz = 10
 volfrac = 0.4
 penal = 2
 rmin = 2
