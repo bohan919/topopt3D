@@ -1,9 +1,8 @@
 # TRANSLATED PYTHON FUNCTION FOR AMFilter.m by LANGELAAR
 import numpy as np
 import numpy.matlib
-import math
 import scipy.sparse as sps
-import copy
+from copy import deepcopy
 
 def AMFilter(x, baseplate, *args):
     #   Possible uses:
@@ -46,15 +45,15 @@ def AMFilter(x, baseplate, *args):
 
     #AM Filter
     Ns = 3
-    Q = P + math.log(Ns)/math.log(xi_0)
+    Q = P + np.log(Ns)/np.log(xi_0)              # 5 replaces Ns
     SHIFT = 100*np.finfo(float).tiny **(1/P)
-    BACKSHIFT = 0.95*Ns**(1/Q)*SHIFT**(P/Q)
-    XiY = np.zeros(np.shape(x))
-    XiX = np.zeros(np.shape(x))
-    keepY = np.zeros(np.shape(x))
-    keepX = np.zeros(np.shape(x))
-    sqY = np.zeros(np.shape(x))
-    sqX = np.zeros(np.shape(x))
+    BACKSHIFT = 0.95*Ns**(1/Q)*SHIFT**(P/Q)      # 5 replaces Ns
+    XiY = np.zeros((nelz, nely, nelx))
+    XiX = np.zeros((nelz, nely, nelx))
+    keepY = np.zeros((nelz, nely, nelx))
+    keepX = np.zeros((nelz, nely, nelx))
+    sqY = np.zeros((nelz, nely, nelx))
+    sqX = np.zeros((nelz, nely, nelx))
 
     # Baseline: identity
     xi[nelz - 1,:,:] = x[nelz - 1, :,:]
@@ -97,10 +96,10 @@ def AMFilter(x, baseplate, *args):
         # dfxRow = copy.deepcopy(dfx)
         # dfxiCol = copy.deepcopy(dfxi)
         # dfxiRow = copy.deepcopy(dfxi)
-        dfxiCol = copy.deepcopy(list(args))
-        dfxiRow = copy.deepcopy(list(args))
-        dfxCol = copy.deepcopy(list(args))
-        dfxRow = copy.deepcopy(list(args))
+        dfxiCol = deepcopy(list(args))
+        dfxiRow = deepcopy(list(args))
+        dfxCol = deepcopy(list(args))
+        dfxRow = deepcopy(list(args))
 
         # from top to base layer:
         for j in range(nelx):
@@ -112,8 +111,8 @@ def AMFilter(x, baseplate, *args):
                 dsmindXi = 1-dsmindx
                 # smax sensitivity terms
                 cbr = np.pad(xi[i,:,j],(1,1),'constant') + SHIFT
-                dmx = np.zeros((3,nely))
-                for s in range(3):
+                dmx = np.zeros((Ns,nely))
+                for s in range(Ns):
                     dmx[s,:] = (P/Q)*keepX[i,:,j]**(1/Q-1)*cbr[0+s:nely+s:1]**(P-1)
                 # rearrange data for quick multiplication
                 qj = np.matlib.repmat([[-1],[0],[1]],nely,1)
@@ -143,8 +142,8 @@ def AMFilter(x, baseplate, *args):
                 dsmindXi = 1-dsmindx
                 # smax sensitivity terms
                 cbr = np.pad(xi[i+1,j,:],(1,1),'constant') + SHIFT
-                dmx = np.zeros((3,nelx))
-                for s in range(3):
+                dmx = np.zeros((Ns,nelx))
+                for s in range(Ns):
                     dmx[s,:] = (P/Q)*keepY[i,j,:]**(1/Q-1)*cbr[0+s:nelx+s:1]**(P-1)
                 # rearrange data for quick multiplication
                 qj = np.matlib.repmat([[-1],[0],[1]],nelx,1)

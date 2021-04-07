@@ -4,11 +4,10 @@ import scipy.sparse as sps
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve
 import matplotlib.pyplot as plt
-#from mpl_toolkits.mplot3d import Axes3D, art3d
+import AMFilter3D
 import pyvista as pv 
-# import sys
-##### for testing only #####
-# import time
+import sys
+
 ############################
 # GENERATE ELEMENT STIFFNESS MATRIX 
 def lk_H8(nu):
@@ -91,11 +90,12 @@ def lk_H8(nu):
 #                     ax.add_collection(pc)
 #     plt.show()
 
-
 def main(nelx, nely, nelz, volfrac, penal, rmin):
+    # USER DEFINED PRINT ORIENTATION
+    baseplate = 'S'
     # USER DEFINED LOOP PARAMETERS
     maxloop = 200
-    tolx = 0.01
+    tolx = 0.005
     displayflag = 0
     # USER DEFINED MATERIAL PROPERTIES
     E0 = 1
@@ -172,51 +172,60 @@ def main(nelx, nely, nelz, volfrac, penal, rmin):
     # INITIALIZE ITERATION
     x = np.tile(volfrac, [nelz, nely, nelx])
     xPhys = x
+    ######## AMFILTER CALL 1 #########
+    xPrint, _ = AMFilter3D.AMFilter(xPhys, baseplate)
+    ##################################
     loop = 0
     change = 1
     # START ITERATION
     while change > tolx and loop < maxloop:
         loop = loop + 1
         # FE ANALYSIS
-        sK = np.reshape(np.ravel(KE, order='F')[np.newaxis].T @ (Emin+xPhys.transpose(0,2,1).ravel(order='C')[np.newaxis]**penal*(E0-Emin)),(24*24*nele,1),order='F')
+        sK = np.reshape(np.ravel(KE, order='F')[np.newaxis].T @ (Emin+xPrint.transpose(0,2,1).ravel(order='C')[np.newaxis]**penal*(E0-Emin)),(24*24*nele,1),order='F')
         K = sps.csr_matrix((np.squeeze(sK), (np.squeeze(iK.astype(int)) - 1, np.squeeze(jK.astype(int)) - 1)))
         K = (K + K.T) / 2
         U[freedofs - 1,:] = spsolve(K[freedofs - 1,:][:, freedofs - 1], F[freedofs - 1,:])[np.newaxis].T 
         # OBJECTIVE FUNCTION AND SENSITIVITY ANALYSIS
         ce = np.reshape(np.sum((U[edofMat - 1].squeeze() @ KE) * U[edofMat - 1].squeeze(), axis=1), (nelz, nelx, nely), order = 'C').transpose(0,2,1)
-        c = np.sum(np.sum(np.sum(Emin + xPhys ** penal * (E0 - Emin) * ce)))
-        dc = -penal * (E0 - Emin) * (xPhys ** (penal - 1)) * ce
+        c = np.sum(np.sum(np.sum(Emin + xPrint ** penal * (E0 - Emin) * ce)))  # REPLACE xPhys with xPrint
+        dc = -penal * (E0 - Emin) * (xPrint ** (penal - 1)) * ce               # REPLACE xPhys with xPrint
         dv = np.ones((nelz, nely, nelx))
+        ######### AMFILTER CALL 2 #########
+        xPrint, senS = AMFilter3D.AMFilter(xPhys, baseplate, dc, dv)
+        dc = senS[0]
+        dv = senS[1]
+        ###################################
         # FILTERING AND MODIFICATION OF SENSITIVITIES
         dc = np.array((H @ (dc.transpose(0,2,1).ravel(order='C')[np.newaxis].T/Hs))).reshape((nelz, nelx, nely), order = 'C').transpose(0,2,1)
         dv = np.array((H @ (dv.transpose(0,2,1).ravel(order='C')[np.newaxis].T/Hs))).reshape((nelz, nelx, nely), order = 'C').transpose(0,2,1)
         # OPTIMALITY CRITERIA UPDATE
         l1 = 0
         l2 = 1e9
-        move = 0.2
+        move = 0.01
         while (l2 - l1) / (l1 + l2) > 1e-3:
             lmid = 0.5 * (l2 + l1)
-            xnew = np.maximum(0, np.maximum(x - move, np.minimum(1, np.minimum(x + move, x * np.sqrt(-dc / dv / lmid)))))
+            xnew_step1 = np.minimum(x + move, x * np.sqrt(-dc / dv / lmid))
+            xnew_step2 = np.minimum(1, xnew_step1)
+            xnew_step3 = np.maximum(x - move, xnew_step2)
+            xnew = np.maximum(0, xnew_step3)
+            # xnew = np.maximum(0, np.maximum(x - move, np.minimum(1, np.minimum(x + move, x * np.sqrt(-dc / dv / lmid)))))
             xPhys = np.array((H @ (xnew.transpose(0,2,1).ravel(order='C')[np.newaxis].T)/Hs)).reshape((nelz, nelx, nely), order = 'C').transpose(0,2,1)
-            if np.sum(xPhys.transpose(0,2,1).ravel(order='C')) > volfrac * nele:
+            ######### AMFILTER CALL 1 ######
+            xPrint, _ = AMFilter3D.AMFilter(xPhys, baseplate)
+            #################################
+            if np.sum(xPrint.transpose(0,2,1).ravel(order='C')) > volfrac * nele:  # REPLACE xPhys with xPrint
                 l1 = lmid
             else:
                 l2 = lmid
         change = np.max(np.absolute(np.ravel(xnew, order='F') - np.ravel(x, order='F')))
         x = xnew
         print("it.: {0} , ch.: {1:.3f}, obj.: {2:.4f}, Vol.: {3:.3f}".format(
-            loop, change, c, np.mean(xPhys.transpose(0,2,1).ravel(order='C'))))
+            loop, change, c, np.mean(xPrint.transpose(0,2,1).ravel(order='C'))))
     # 3D PLOT
     # convert numpy array to what pyvista wants
-    data = pv.wrap(xPhys)
+    data = pv.wrap(xPrint)
 
     # create plot
     p = pv.Plotter()
     p.add_volume(data)
     p.show()
-
-
-
-
-    
-    

@@ -1,22 +1,35 @@
-import numpy as np
-import numpy.matlib
-import scipy.sparse as sps
-from scipy.sparse.linalg import spsolve
+# import numpy as np
+# import numpy.matlib
+# import scipy.sparse as sps
+# from scipy.sparse.linalg import spsolve
 
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import colors
+# import matplotlib.pyplot as plt
+# from mpl_toolkits.mplot3d import Axes3D
+# from matplotlib import colors
 
 # np.savetxt("output.csv", a_np_array, delimiter=",")
 
-import top3D
-nelx = 5
-nely = 3
-nelz = 2
-volfrac = 0.3
-penal = 3
-rmin = 1.5
-top3D.main(nelx, nely, nelz, volfrac, penal, rmin)
+# from pyvista import examples
+# examples.plot_wave()
+
+# import top3D
+import top3DAM
+nelx = 10
+nely = 10
+nelz = 4
+volfrac = 0.4
+penal = 2
+rmin = 2
+# top3D.main(nelx, nely, nelz, volfrac, penal, rmin)
+top3DAM.main(nelx, nely, nelz, volfrac, penal, rmin)
+
+# import cProfile
+# import pstats
+# from pstats import SortKey
+# cProfile.run('top3D.main(30, 40, 5, 0.4, 5, 2)','cprofilestats.txt')
+# p = pstats.Stats('cprofilestats.txt')
+# p.sort_stats('tottime').print_stats(50)
+
 
 # import AMFilter3D
 # #x = np.random.randint(0, 2, size = (5, 10, 20))
