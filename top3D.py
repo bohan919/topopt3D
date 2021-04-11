@@ -193,7 +193,7 @@ def main(nelx, nely, nelz, volfrac, penal, rmin):
         # OPTIMALITY CRITERIA UPDATE
         l1 = 0
         l2 = 1e9
-        move = 0.2
+        move = 0.05
         while (l2 - l1) / (l1 + l2) > 1e-3:
             lmid = 0.5 * (l2 + l1)
             xnew = np.maximum(0, np.maximum(x - move, np.minimum(1, np.minimum(x + move, x * np.sqrt(-dc / dv / lmid)))))
@@ -206,6 +206,9 @@ def main(nelx, nely, nelz, volfrac, penal, rmin):
         x = xnew
         print("it.: {0} , ch.: {1:.3f}, obj.: {2:.4f}, Vol.: {3:.3f}".format(
             loop, change, c, np.mean(xPhys.transpose(0,2,1).ravel(order='C'))))
+    
+    np.save('xPrintNoAM.npy', xPhys) # save
+
     # 3D PLOT
     # convert numpy array to what pyvista wants
     data = pv.wrap(xPhys)

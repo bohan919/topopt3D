@@ -48,39 +48,39 @@ def AMFilter(x, baseplate, *args):
     Q = P + np.log(Ns)/np.log(xi_0)             
     SHIFT = 100*np.finfo(float).tiny **(1/P)
     BACKSHIFT = 0.95*Ns**(1/Q)*SHIFT**(P/Q)     
-    XiY = np.zeros((nelz, nely, nelx))
+    XiZ = np.zeros((nelz, nely, nelx))
     XiX = np.zeros((nelz, nely, nelx))
-    keepY = np.zeros((nelz, nely, nelx))
+    keepZ = np.zeros((nelz, nely, nelx))
     keepX = np.zeros((nelz, nely, nelx))
-    sqY = np.zeros((nelz, nely, nelx))
+    sqZ = np.zeros((nelz, nely, nelx))
     sqX = np.zeros((nelz, nely, nelx))
 
     # Baseline: identity
-    xi[nelz - 1,:,:] = x[nelz - 1, :,:]
-    xiY = np.zeros((nelz, nely, nelx))
+    xi[:,nely-1,:] = x[:,nely-1,:]
+    xiZ = np.zeros((nelz, nely, nelx))
     xiX = np.zeros((nelz, nely, nelx))
     
-    for i in range(nelz-2, -1, -1):
-        for j in range(nely):
+    for i in range(nely-2, -1, -1):
+        for j in range(nelz):
             # compute maxima of current base row
-            cbr = np.pad(xi[i+1,j,:],(1,1),'constant') + SHIFT
-            keepY[i,j,:] = cbr[0:nelx]**P + cbr[1:nelx+1]**P + cbr[2:]**P
-            XiY[i,j,:] = keepY[i,j,:]**(1/Q) - BACKSHIFT
-            sqY[i,j,:] = np.sqrt( (x[i,j,:]-XiY[i,j,:])**2 + ep )
+            cbr = np.pad(xi[j,i+1,:],(1,1),'constant') + SHIFT
+            keepZ[j,i,:] = cbr[0:nelx]**P + cbr[1:nelx+1]**P + cbr[2:]**P
+            XiZ[j,i,:] = keepZ[j,i,:]**(1/Q) - BACKSHIFT
+            sqZ[j,i,:] = np.sqrt( (x[j,i,:]-XiZ[j,i,:])**2 + ep )
             # set row above to supported value using smooth minimum
-            xiY[i,j,:] = 0.5 * ((x[i,j,:] + XiY[i,j,:]) - sqY[i,j,:] + np.sqrt(ep))
+            xiZ[j,i,:] = 0.5 * ((x[j,i,:] + XiZ[j,i,:]) - sqZ[j,i,:] + np.sqrt(ep))
         for j in range(nelx):
             # compute maxima of current base column
-            cbr = np.pad(xi[i+1,:,j],(1,1),'constant') + SHIFT
-            keepX[i,:,j] = cbr[0:nely]**P + cbr[1:nely+1]**P + cbr[2:]**P
-            XiX[i,:,j] = keepX[i,:,j]**(1/Q) - BACKSHIFT
-            sqX[i,:,j] = np.sqrt( (x[i,:,j]-XiX[i,:,j])**2 + ep )
+            cbr = np.pad(xi[:,i+1,j],(1,1),'constant') + SHIFT
+            keepX[:,i,j] = cbr[0:nelz]**P + cbr[1:nelz+1]**P + cbr[2:]**P
+            XiX[:,i,j] = keepX[:,i,j]**(1/Q) - BACKSHIFT
+            sqX[:,i,j] = np.sqrt( (x[:,i,j]-XiX[:,i,j])**2 + ep )
             # set row above to supported value using smooth minimum
-            xiX[i,:, j] = 0.5 * ((x[i, :, j] + XiX[i, :, j]) - sqX[i, :, j] + np.sqrt(ep))
-        xi[i,:,:] = np.maximum(xiY[i,:,:], xiX[i,:,:])
-    # keep = np.maximum(keepY, keepX)
-    # sq = np.maximum(sqY, sqX)
-    # Xi = np.maximum(XiY, XiX)
+            xiX[:,i,j] = 0.5 * ((x[:,i,j] + XiX[:,i,j]) - sqX[:,i,j] + np.sqrt(ep))
+        xi[:,i,:] = np.maximum(xiZ[:,i,:], xiX[:,i,:])
+    # keep = np.maximum(keepZ, keepX)
+    # sq = np.maximum(sqZ, sqX)
+    # Xi = np.maximum(XiZ, XiX)
             
     # SENSITIVITIES
     if nSens != 0:
@@ -134,17 +134,17 @@ def AMFilter(x, baseplate, *args):
         #     for k in range(nSens):
         #         dfxRow[k][i - 1,:, j] = (dfxiRow[k][i - 1,:, j] + varLambdaRow[k,:])[np.newaxis]
 
-        for j in range(nely):
+        for j in range(nelz):
             varLambdaCol = np.zeros((nSens, nelx))
-            for i in range(nelz-1):
+            for i in range(nely-1):
                 # smin sensitivity terms
-                dsmindx = 0.5*( 1-(x[i,j,:]-XiY[i,j,:])/sqY[i,j,:] )
+                dsmindx = 0.5*( 1-(x[j,i,:]-XiZ[j,i,:])/sqZ[j,i,:] )
                 dsmindXi = 1-dsmindx
                 # smax sensitivity terms
-                cbr = np.pad(xi[i+1,j,:],(1,1),'constant') + SHIFT
+                cbr = np.pad(xi[j,i+1,:],(1,1),'constant') + SHIFT
                 dmx = np.zeros((Ns,nelx))
                 for s in range(Ns):
-                    dmx[s,:] = (P/Q)*keepY[i,j,:]**(1/Q-1)*cbr[0+s:nelx+s:1]**(P-1)
+                    dmx[s,:] = (P/Q)*keepZ[j,i,:]**(1/Q-1)*cbr[0+s:nelx+s:1]**(P-1)
                 # rearrange data for quick multiplication
                 qj = np.matlib.repmat([[-1],[0],[1]],nelx,1)
                 qi = np.matlib.repmat(np.arange(nelx)+1,3,1)
@@ -158,12 +158,12 @@ def AMFilter(x, baseplate, *args):
                 dsmaxdxi = sps.csr_matrix( (np.squeeze(qs[1:len(qs)-1]), (np.squeeze(qi[1:len(qi)-1])-1,np.squeeze(qj[1:len(qj)-1])-1) ),dtype=np.float )
                 dsmaxdxi.eliminate_zeros()
                 for k in range(nSens):
-                    dfxCol[k][i,j,:] = (dsmindx*( dfxiCol[k][i,j,:]+varLambdaCol[k,:] ))[np.newaxis]
-                    varLambdaCol[k,:] = ( (dfxiCol[k][i,j,:]+varLambdaCol[k,:])*dsmindXi ) @ dsmaxdxi
+                    dfxCol[k][j,i,:] = (dsmindx*( dfxiCol[k][j,i,:]+varLambdaCol[k,:] ))[np.newaxis]
+                    varLambdaCol[k,:] = ( (dfxiCol[k][j,i,:]+varLambdaCol[k,:])*dsmindXi ) @ dsmaxdxi
             # base layer
-            i = nelz
+            i = nely
             for k in range(nSens):
-                dfxCol[k][i - 1, j,:] = (dfxiCol[k][i - 1, j,:] + varLambdaCol[k,:])[np.newaxis]
+                dfxCol[k][j,i - 1,:] = (dfxiCol[k][j,i - 1,:] + varLambdaCol[k,:])[np.newaxis]
        
         # dfx = [0.5*(dfxCol[i]+dfxRow[i]) for i in range(nSens)]
                 

@@ -9,13 +9,17 @@
 
 # np.savetxt("output.csv", a_np_array, delimiter=",")
 
+# SAVE AND READ NUMPY ARRAYS
+# np.save('xPrint.npy', xPrint) # save
+# new_num_arr = np.load('data.npy') # load
+
 # from pyvista import examples
 # examples.plot_wave()
 
 # import top3D
 import top3DAM
-nelx = 30
-nely = 40
+nelx = 40
+nely = 20
 nelz = 10
 volfrac = 0.4
 penal = 2
