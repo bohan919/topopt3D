@@ -221,7 +221,7 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
             change = np.max(np.absolute(np.ravel(xnew, order='F') - np.ravel(x, order='F')))
             x = xnew
             print("it.: {0} , ch.: {1:.3f}, obj.: {2:.4f}, Vol.: {3:.3f}".format(
-                loop, change, c, np.mean(xPrint.transpose(0, 2, 1).ravel(order='C'))))
+                loop, change, c, np.mean(xPrint.ravel(order='C'))))
     elif heaviside == 1:
         beta = 1
         # INITIALIZE ITERATION
@@ -278,7 +278,7 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
                 ######### AMFILTER CALL 1 ######
                 xPrint, _ = AMFilter3D.AMFilter(xPhys, baseplate)
                 #################################
-                if np.sum(xPrint.transpose(0,2,1).ravel(order='C')) > volfrac * nele:  # REPLACE xPhys with xPrint
+                if np.sum(xPrint.ravel(order='C')) > volfrac * nele:  # REPLACE xPhys with xPrint
                     l1 = lmid
                 else:
                     l2 = lmid
@@ -291,7 +291,7 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
                 print("Parameter beta increased to {0}. \n".format(beta))
                 
             print("it.: {0} , ch.: {1:.3f}, obj.: {2:.4f}, Vol.: {3:.3f}".format(
-                loop, change, c, np.mean(xPrint.transpose(0,2,1).ravel(order='C'))))
+                loop, change, c, np.mean(xPrint.ravel(order='C'))))
     np.save('xPrint.npy', xPrint) # save
     # # 3D PLOT
     # # convert numpy array to what pyvista wants
