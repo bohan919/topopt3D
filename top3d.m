@@ -1,7 +1,7 @@
 % AN 169 LINE 3D TOPOLOGY OPITMIZATION CODE BY LIU AND TOVAR (JUL 2013)
 function top3d(nelx,nely,nelz,volfrac,penal,rmin)
 % USER-DEFINED LOOP PARAMETERS
-maxloop = 200;    % Maximum number of iterations
+maxloop = 500;    % Maximum number of iterations
 tolx = 0.01;      % Terminarion criterion
 displayflag = 0;  % Display structure flag
 % USER-DEFINED MATERIAL PROPERTIES
@@ -62,12 +62,18 @@ H = sparse(iH,jH,sH);
 Hs = sum(H,2);
 % INITIALIZE ITERATION
 x = repmat(volfrac,[nely,nelx,nelz]);
-xPhys = x; 
+beta = 1; % FOR HEAVISIDE
+% xPhys = x; 
+xTilde = x;
+xPhys = 1-exp(-beta*xTilde)+xTilde*exp(-beta);
+loopbeta = 0;
+
 loop = 0; 
 change = 1;
 % START ITERATION
 while change > tolx && loop < maxloop
     loop = loop+1;
+    loopbeta = loopbeta + 1; % FOR HEAVISIDE
     % FE-ANALYSIS
     sK = reshape(KE(:)*(Emin+xPhys(:)'.^penal*(E0-Emin)),24*24*nele,1);
     K = sparse(iK,jK,sK);
@@ -79,18 +85,33 @@ while change > tolx && loop < maxloop
     dc = -penal*(E0-Emin)*xPhys.^(penal-1).*ce;
     dv = ones(nely,nelx,nelz);
     % FILTERING AND MODIFICATION OF SENSITIVITIES
-    dc(:) = H*(dc(:)./Hs);
-    dv(:) = H*(dv(:)./Hs);
+%     dc(:) = H*(dc(:)./Hs);
+%     dv(:) = H*(dv(:)./Hs);
+    dx = beta*exp(-beta*xTilde)+exp(-beta); % FOR HEAVISIDE
+    dc(:) = H*(dc(:).*dx(:)./Hs);
+    dv(:) = H*(dv(:).*dx(:)./Hs);
+    
     % OPTIMALITY CRITERIA UPDATE
-    l1 = 0; l2 = 1e9; move = 0.2;
+    l1 = 0; l2 = 1e9; move = 0.05;
     while (l2-l1)/(l1+l2) > 1e-3
         lmid = 0.5*(l2+l1);
         xnew = max(0,max(x-move,min(1,min(x+move,x.*sqrt(-dc./dv/lmid)))));
-        xPhys(:) = (H*xnew(:))./Hs;
+%         xPhys(:) = (H*xnew(:))./Hs;
+        xTilde(:) = (H*xnew(:))./Hs;  % FOR HEAVISIDE
+        xPhys = 1-exp(-beta*xTilde)+xTilde*exp(-beta);
+        
         if sum(xPhys(:)) > volfrac*nele, l1 = lmid; else l2 = lmid; end
     end
     change = max(abs(xnew(:)-x(:)));
     x = xnew;
+    
+    if beta < 512 && (loopbeta >=50 || change <=0.01) % FOR HEAVISIDE
+      beta = 2*beta;
+      loopbeta = 0;
+      change = 1;
+      fprintf('Parameter beta increased to %g. \n',beta)
+    end
+    
     % PRINT RESULTS
     fprintf(' It.:%5i Obj.:%11.4f Vol.:%7.3f ch.:%7.3f\n',loop,c,mean(xPhys(:)),change);
     % PLOT DENSITIES

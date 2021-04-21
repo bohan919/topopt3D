@@ -38,108 +38,92 @@ end
 [nely,nelx, nelz]=size(x); 
 
 %AM FILTER =====================
-Ns=3;
+Ns=5; % !!!!! WATCH OUT HOW Ns IS USED !!!!!!!!!
 Q=P+log(Ns)/log(xi_0); 
 SHIFT = 100*realmin^(1/P); % small shift to prevent division by 0
 BACKSHIFT = 0.95*Ns^(1/Q)*SHIFT^(P/Q);
-XiX=zeros(size(x)); keepX=zeros(size(x)); sqX=zeros(size(x));
-XiY=zeros(size(x)); keepY=zeros(size(x)); sqY=zeros(size(x));
+Xi=zeros(size(x)); keep=zeros(size(x)); sq=zeros(size(x));
 % baseline: identity
-xi(:,:,nelz)=x(:,:,nelz); % copy base face as-is
-xiY = zeros(size(x));
-xiX = zeros(size(x));
-
-for i=(nelz-1):-1:1
-    for j = 1:nely
+xi(nely,:,:)=x(nely,:,:); % copy base row as-is
+for i=(nely-1):-1:1
     % compute maxima of current base row
-    cbr = [0, xi(j,:,i+1), 0] + SHIFT; % pad with zeros
-    keepY(j,:,i) = (cbr(1:nelx).^P + cbr(2:(nelx+1)).^P + cbr(3:end).^P);
-    XiY(j,:,i) = keepY(j,:,i).^(1/Q) - BACKSHIFT;
-    sqY(j,:,i) = sqrt((x(j,:,i)-XiY(j,:,i)).^2 + ep);
-    % set row above to supported value using smooth minimum:
-    xiY(j,:,i) = 0.5*((x(j,:,i)+XiY(j,:,i)) - sqY(j,:,i) + sqrt(ep));
-    end
+%     cbr = [0, xi(i+1,:), 0] + SHIFT; % pad with zeros
+    cbr = zeros(1,nelx+2,nelz+2);
+    cbr(1,2:nelx+1, 2:nelz+1) = xi(i+1,:,:)+SHIFT;
     
-    for j = 1:nelx
-    % compute maxima of current base row
-    cbr = [0; xi(:,j,i+1); 0] + SHIFT; % pad with zeros
-    keepX(:,j,i) = (cbr(1:nely).^P + cbr(2:(nely+1)).^P + cbr(3:end).^P);
-    XiX(:,j,i) = keepX(:,j,i).^(1/Q) - BACKSHIFT;
-    sqX(:,j,i) = sqrt((x(:,j,i)-XiX(:,j,i)).^2 + ep);
-    % set row above to supported value using smooth minimum:
-    xiX(:,j,i) = 0.5*((x(:,j,i)+XiX(:,j,i)) - sqX(:,j,i) + sqrt(ep));
-    end
-end
+%     keep(i,:) = (cbr(1:nelx).^P + cbr(2:(nelx+1)).^P + cbr(3:end).^P);
 
+%     keep1 = (cbr(:,1:nelx).^P + cbr(:, 2:(nelx+1)).^P + cbr(:, 3:end).^P);
+%     keep2 = (cbr(1:nelz,:).^P + cbr(2:(nelz+1),:).^P + cbr(3:end, :).^P);
+%     keep(i,:,:) = max(keep1,keep2);
+    keep(i,:,:) = (cbr(1,1:nelx,2:(nelz+1)).^P + cbr(1,2:(nelx+1),2:(nelz+1)).^P + cbr(1,3:end,2:(nelz+1)).^P ...
+                  +cbr(1,2:(nelx+1),1:nelz).^P + cbr(1,2:(nelx+1),3:end).^P);
+    
+    Xi(i,:,:) = keep(i,:,:).^(1/Q) - BACKSHIFT;
+    sq(i,:,:) = sqrt((x(i,:,:)-Xi(i,:,:)).^2 + ep);
+    % set row above to supported value using smooth minimum:
+    xi(i,:,:) = 0.5*((x(i,:,:)+Xi(i,:,:)) - sq(i,:,:) + sqrt(ep));
+end
 %SENSITIVITIES
 if nSens
-    dfxiCol=varargin; dfxCol=varargin;
-    dfxiRow=varargin; dfxRow=varargin;
-    
-    for j = 1:nelx
-        lambdaRow=zeros(nSens,nely); 
-        % from top to base layer:
-        for i=1:nelz-1
-            % smin sensitivity terms
-            dsmindx  = .5*(1-(x(:,j,i)-XiX(:,j,i))./sqX(:,j,i));
-            %dsmindXi = .5*(1+(x(i,:)-Xi(i,:))./sq(i,:)); 
-            dsmindXi = 1-dsmindx; 
-            % smax sensitivity terms
-            cbr = [0; xi(:,j,i+1); 0] + SHIFT; % pad with zeros
-            dmx = zeros(Ns,nelx);
-            for s=1:Ns
-                dmx(s,:) = (P/Q)*keepX(:,j,i).^(1/Q-1).*cbr((1:nely)+(s-1)).^(P-1);
-            end        
-            % rearrange data for quick multiplication:
-            qj=repmat([-1 0 1]',nely,1);
-            qi=repmat(1:nely,3,1); qi=qi(:);
-            qj=qj+qi; qs=dmx(:);
-            dsmaxdxi=sparse(qi(2:end-1),qj(2:end-1),qs(2:end-1)); 
-            for k=1:nSens
-                dfxRow{k}(:,j,i) = dsmindx.*(dfxiRow{k}(:,j,i)+lambdaRow(k,:)');
-                lambdaRow(k,:)= ((dfxiRow{k}(:,j,i)+lambdaRow(k,:)').*dsmindXi)'*dsmaxdxi;
+    dfxi=varargin; dfx=varargin; 
+%     lambda=zeros(nSens,nelx); % MAYBE MAKE IT 3D (zeros(nelz,nelx, nSens))?
+    lambda = zeros(nSens, nelx,nelz);
+    % from top to base layer:
+    for i=1:nely-1
+        % smin sensitivity terms
+        dsmindx  = .5*(1-(x(i,:,:)-Xi(i,:,:))./sq(i,:,:));
+        %dsmindXi = .5*(1+(x(i,:)-Xi(i,:))./sq(i,:)); 
+        dsmindXi = 1-dsmindx; 
+        % smax sensitivity terms
+%         cbr = [0, xi(i+1,:), 0] + SHIFT; % pad with zeros
+        cbr = zeros(1,nelx+2,nelz+2);
+        cbr(1,2:nelx+1, 2:nelz+1) = xi(i+1,:,:)+SHIFT;
+        
+%         dmx = zeros(Ns,nelx);
+%         for j=1:Ns
+%             dmx(j,:) = (P/Q)*keep(i,:).^(1/Q-1).*cbr((1:nelx)+(j-1)).^(P-1);
+%         end        
+        dmx = zeros(Ns, nelx, nelz);
+        for j = 1:Ns
+            if j <= 3
+                dmx(j,:,:) = (P/Q)*keep(i,:,:).^(1/Q-1).*cbr(1,(1:nelx)+(j-1),(2:nelz+1)).^(P-1);
+            elseif j == 4
+                dmx(j,:,:) = (P/Q)*keep(i,:,:).^(1/Q-1).*cbr(1,(2:nelx+1),(1:nelz)).^(P-1);
+            elseif j == 5
+                dmx(j,:,:) = (P/Q)*keep(i,:,:).^(1/Q-1).*cbr(1,(2:nelx+1),(1:nelz)+2).^(P-1);
             end
         end
-        % base layer:
-        i=nelz;
+        
+%         % rearrange data for quick multiplication:
+%         qj=repmat([-1 0 1]',nelx,1);
+%         qi=repmat(1:nelx,3,1); qi=qi(:);
+%         qj=qj+qi; qs=dmx(:);
+%         dsmaxdxi=sparse(qi(2:end-1),qj(2:end-1),qs(2:end-1)); 
+        
         for k=1:nSens
-            dfxRow{k}(:,j,i) = dfxiCol{k}(:,j,i)+lambdaRow(k,:)';
-        end
-    end
-    
-    for j = 1:nely
-        lambdaCol=zeros(nSens,nelx); 
-        % from top to base layer:
-        for i=1:nelz-1
-            % smin sensitivity terms
-            dsmindx  = .5*(1-(x(j,:,i)-XiX(j,:,i))./sqX(j,:,i));
-            %dsmindXi = .5*(1+(x(i,:)-Xi(i,:))./sq(i,:)); 
-            dsmindXi = 1-dsmindx; 
-            % smax sensitivity terms
-            cbr = [0, xi(j,:,i+1), 0] + SHIFT; % pad with zeros
-            dmx = zeros(Ns,nely);
-            for s=1:Ns
-                dmx(s,:) = (P/Q)*keepY(j,:,i).^(1/Q-1).*cbr((1:nelx)+(s-1)).^(P-1);
-            end        
-            % rearrange data for quick multiplication:
-            qj=repmat([-1 0 1]',nelx,1);
-            qi=repmat(1:nelx,3,1); qi=qi(:);
-            qj=qj+qi; qs=dmx(:);
-            dsmaxdxi=sparse(qi(2:end-1),qj(2:end-1),qs(2:end-1)); 
-            for k=1:nSens
-                dfxCol{k}(j,:,i) = dsmindx.*(dfxiCol{k}(j,:,i)+lambdaCol(k,:));
-                lambdaCol(k,:)= ((dfxiCol{k}(j,:,i)+lambdaCol(k,:)).*dsmindXi)*dsmaxdxi;
+            dfx{k}(i,:,:) = dsmindx.*(dfxi{k}(i,:,:)+lambda(k,:,:));
+%              lambda(k,:)= ((dfxi{k}(i,:)+lambda(k,:)).*dsmindXi)*dsmaxdxi;
+            preLambda = zeros(1,nelx+2,nelz+2);
+            preLambda(1,2:nelx+1,2:nelz+1) = (dfxi{k}(i,:,:)+lambda(k,:,:)).*dsmindXi;
+            for nz=1:nelz
+                for nx = 1:nelx
+                    lambda(k, nx, nz) = sum([preLambda(1, nx-1+1,nz+1);...
+                                            preLambda(1, nx+1,nz+1);...
+                                            preLambda(1, nx+1+1,nz+1);...
+                                            preLambda(1, nx+1,nz-1+1);...
+                                            preLambda(1, nx+1,nz+1+1)].*...
+                                            dmx(2,nx,nz));
+%    [dmx(1,nx,nz);dmx(2,nx,nz); dmx(3,nx,nz);dmx(4,nx,nz); dmx(5,nx,nz)]
+                                            
+                end
             end
         end
-        % base layer:
-        i=nelz;
-        for k=1:nSens
-            dfxCol{k}(:,j,i) = dfxCol{k}(:,j,i)+lambdaCol(k,:)';
-        end
     end
-    
-    for k = 1:nSens
-        dfx{k} = 0.5*(dfxCol{k}+dfxRow{k});
+    % base layer:
+    i=nely;
+    for k=1:nSens
+        dfx{k}(i,:,:) = dfxi{k}(i,:,:)+lambda(k,:,:);
     end
 end
 

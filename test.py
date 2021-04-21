@@ -24,14 +24,15 @@ nelz = 10
 volfrac = 0.4
 penal = 2
 rmin = 2
-# top3D.main(nelx, nely, nelz, volfrac, penal, rmin)
-top3DAM.main(nelx, nely, nelz, volfrac, penal, rmin)
+heaviside = 0
+# top3D.main(nelx, nely, nelz, volfrac, penal, rmin, heaviside)
+top3DAM.main(nelx, nely, nelz, volfrac, penal, rmin, heaviside)
 
 # import cProfile
 # import pstats
 # from pstats import SortKey
-# cProfile.run('top3D.main(30, 40, 5, 0.4, 5, 2)','cprofilestats.txt')
-# p = pstats.Stats('cprofilestats.txt')
+# cProfile.run('top3D.main(nelx, nely, nelz, volfrac, penal, rmin)','cprofilestats3D.txt')
+# p = pstats.Stats('cprofilestats3D.txt')
 # p.sort_stats('tottime').print_stats(50)
 
 

@@ -1,7 +1,7 @@
 % AN 169 LINE 3D TOPOLOGY OPITMIZATION CODE BY LIU AND TOVAR (JUL 2013)
 function top3dAM(nelx,nely,nelz,volfrac,penal,rmin)
 % USER-DEFINED LOOP PARAMETERS
-maxloop = 200;    % Maximum number of iterations
+maxloop = 500;    % Maximum number of iterations
 tolx = 0.01;      % Terminarion criterion
 displayflag = 0;  % Display structure flag
 % USER-DEFINED MATERIAL PROPERTIES
@@ -165,7 +165,7 @@ for k = 1:nelz
         x = (i-1)*hx;
         for j = 1:nely
             y = nely*hy - (j-1)*hy;
-            if (rho(j,i,k) > 0.5)  % User-defined display density threshold
+            if (rho(j,i,k) > 0.44)  % User-defined display density threshold
                 vert = [x y z; x y-hx z; x+hx y-hx z; x+hx y z; x y z+hx;x y-hx z+hx; x+hx y-hx z+hx;x+hx y z+hx];
                 vert(:,[2 3]) = vert(:,[3 2]); vert(:,2,:) = -vert(:,2,:);
                 patch('Faces',face,'Vertices',vert,'FaceColor',[0.2+0.8*(1-rho(j,i,k)),0.2+0.8*(1-rho(j,i,k)),0.2+0.8*(1-rho(j,i,k))]);
