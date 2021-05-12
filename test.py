@@ -16,7 +16,7 @@
 # from pyvista import examples
 # examples.plot_wave()
 
-# import top3D
+import top3D
 import top3DAM
 nelx = 40
 nely = 20
@@ -25,8 +25,8 @@ volfrac = 0.4
 penal = 2
 rmin = 2
 heaviside = 0
-# top3D.main(nelx, nely, nelz, volfrac, penal, rmin, heaviside)
-top3DAM.main(nelx, nely, nelz, volfrac, penal, rmin, heaviside)
+top3D.main(nelx, nely, nelz, volfrac, penal, rmin)
+# top3DAM.main(nelx, nely, nelz, volfrac, penal, rmin, heaviside)
 
 # import cProfile
 # import pstats
