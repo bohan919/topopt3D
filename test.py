@@ -18,6 +18,9 @@
 
 import top3D
 import top3DAM
+import cProfile
+import pstats
+from pstats import SortKey
 nelx = 40
 nely = 20
 nelz = 10
@@ -25,15 +28,12 @@ volfrac = 0.4
 penal = 2
 rmin = 2
 heaviside = 0
-top3D.main(nelx, nely, nelz, volfrac, penal, rmin)
+# top3D.main(nelx, nely, nelz, volfrac, penal, rmin)
 # top3DAM.main(nelx, nely, nelz, volfrac, penal, rmin, heaviside)
+cProfile.run('top3D.main(nelx, nely, nelz, volfrac, penal, rmin)','cprofilestats3D.txt')
+p = pstats.Stats('cprofilestats3D.txt')
+p.sort_stats('tottime').print_stats(50)
 
-# import cProfile
-# import pstats
-# from pstats import SortKey
-# cProfile.run('top3D.main(nelx, nely, nelz, volfrac, penal, rmin)','cprofilestats3D.txt')
-# p = pstats.Stats('cprofilestats3D.txt')
-# p.sort_stats('tottime').print_stats(50)
 
 
 # import AMFilter3D

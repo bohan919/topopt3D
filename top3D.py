@@ -1,9 +1,10 @@
 import numpy as np
-import numpy.matlib
-import scipy.sparse as sps
-from scipy.sparse import coo_matrix
-from scipy.sparse.linalg import spsolve
-import matplotlib.pyplot as plt
+# import numpy.matlib
+# import scipy.sparse as sps
+from scipy.sparse import csr_matrix
+from pypardiso import spsolve
+# from scipy.sparse.linalg import spsolve
+# import matplotlib.pyplot as plt
 #from mpl_toolkits.mplot3d import Axes3D, art3d
 import pyvista as pv 
 # import sys
@@ -113,7 +114,7 @@ def main(nelx, nely, nelz, volfrac, penal, rmin):
     # PREPARE FE ANALYSIS
     nele = nelx * nely * nelz
     ndof = 3 * (nelx + 1) * (nely + 1) * (nelz + 1)
-    F = sps.csr_matrix((-1 * np.ones(np.shape(loaddof)), (loaddof-1, np.ones(np.shape(loaddof))-1)),
+    F = csr_matrix((-1 * np.ones(np.shape(loaddof)), (loaddof-1, np.ones(np.shape(loaddof))-1)),
                     shape=(ndof, 1))
     U = np.zeros((ndof, 1))
     freedofs = np.setdiff1d(np.arange(ndof) + 1, fixeddof)
@@ -167,8 +168,8 @@ def main(nelx, nely, nelz, volfrac, penal, rmin):
     jH = np.concatenate((jH, np.array(jHdummy).reshape((len(jHdummy), 1))))
     sH = np.concatenate((sH, np.array(sHdummy).reshape((len(sHdummy), 1))))
 
-    H = sps.csr_matrix((np.squeeze(sH), (np.squeeze(iH.astype(int)) - 1, np.squeeze(jH.astype(int)) - 1)))
-    Hs = sps.csr_matrix.sum(H,axis=0).T
+    H = csr_matrix((np.squeeze(sH), (np.squeeze(iH.astype(int)) - 1, np.squeeze(jH.astype(int)) - 1)))
+    Hs = csr_matrix.sum(H,axis=0).T
     # INITIALIZE ITERATION
     x = np.tile(volfrac, [nelz, nely, nelx])
     xPhys = x
@@ -179,7 +180,7 @@ def main(nelx, nely, nelz, volfrac, penal, rmin):
         loop = loop + 1
         # FE ANALYSIS
         sK = np.reshape(np.ravel(KE, order='F')[np.newaxis].T @ (Emin+xPhys.transpose(0,2,1).ravel(order='C')[np.newaxis]**penal*(E0-Emin)),(24*24*nele,1),order='F')
-        K = sps.csr_matrix((np.squeeze(sK), (np.squeeze(iK.astype(int)) - 1, np.squeeze(jK.astype(int)) - 1)))
+        K = csr_matrix((np.squeeze(sK), (np.squeeze(iK.astype(int)) - 1, np.squeeze(jK.astype(int)) - 1)))
         K = (K + K.T) / 2
         U[freedofs - 1,:] = spsolve(K[freedofs - 1,:][:, freedofs - 1], F[freedofs - 1,:])[np.newaxis].T 
         # OBJECTIVE FUNCTION AND SENSITIVITY ANALYSIS
@@ -207,7 +208,7 @@ def main(nelx, nely, nelz, volfrac, penal, rmin):
         print("it.: {0} , ch.: {1:.3f}, obj.: {2:.4f}, Vol.: {3:.3f}".format(
             loop, change, c, np.mean(xPhys.transpose(0,2,1).ravel(order='C'))))
     
-    np.save('xPrintNoAM.npy', xPhys) # save
+    # np.save('xPrintNoAM.npy', xPhys) # save
 
     # # 3D PLOT
     # # convert numpy array to what pyvista wants
