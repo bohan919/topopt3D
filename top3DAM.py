@@ -293,7 +293,7 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
                 
             print("it.: {0} , ch.: {1:.3f}, obj.: {2:.4f}, Vol.: {3:.3f}".format(
                 loop, change, c, np.mean(xPrint.ravel(order='C'))))
-    np.save('xPrint.npy', xPrint) # save
+    # np.save('xPrint.npy', xPrint) # save
     # # 3D PLOT
     # # convert numpy array to what pyvista wants
     # data = pv.wrap(xPrint)
@@ -302,3 +302,4 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
     # p = pv.Plotter()
     # p.add_volume(data)
     # p.show()
+    return xPrint

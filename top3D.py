@@ -218,6 +218,7 @@ def main(nelx, nely, nelz, volfrac, penal, rmin):
     # p = pv.Plotter()
     # p.add_volume(data)
     # p.show()
+    return xPhys
 
 
 
