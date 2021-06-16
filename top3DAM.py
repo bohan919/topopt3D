@@ -1,15 +1,18 @@
+# TOPOLOGY OPTIMISATION BASED ON top88.mat WITH LANGELAAR'S AMFILTER FOR 2D BY BOHAN PENG - IMPERIAL COLLEGE LONDON 2021
+# AMFILTER CALL TYPE 1 - OBTAIN xPrint only
+# AMFILTER CALL TYPE 2 - OBTAIN xPrint and Sensitivities
+# heaviside - 0: density filter only
+#             1: density filter and heaviside filter
+# DISCLAIMER -                                                             #
+# The author reserves all rights but does not guaranty that the code is    #
+# free from errors. Furthermore, he shall not be liable in any event       #
+# caused by the use of the program.                                        #
+
 import numpy as np
-# import numpy.matlib
-# import scipy.sparse as sps
 from scipy.sparse import csr_matrix
 from pypardiso import spsolve
-# from scipy.sparse.linalg import spsolve
-# import matplotlib.pyplot as plt
 import AMFilter3D
-import pyvista as pv 
-import sys
 
-############################
 # GENERATE ELEMENT STIFFNESS MATRIX 
 def lk_H8(nu):
     A = np.array([[32, 6, -8, 6, -6, 4, 3, -6, -10, 3, -3, -3, -4, -8],
@@ -67,35 +70,11 @@ def lk_H8(nu):
     KE = 1/((nu+1)*(1-2*nu))*Ktot 
     return KE
 
-# def display_3D(rho):
-#     [nelz, nely, nelx] = np.shape(rho)
-#     # USER DEFINED UNIT ELEMENT SIZE
-#     hx = 1
-#     hy = 1
-#     hz = 1
-#     face = np.array([[1, 2, 3, 4], [2, 6, 7, 3], [4, 3, 7, 8], [1, 5, 8, 4], [1, 2, 6, 5], [5, 6, 7, 8]])
-#     fig = plt.figure()
-#     ax = fig.add_subplot(projection='3d')
-#     for k in range(nelz):
-#         z = k * hz
-#         for i in range(nelx):
-#             x = i * hx
-#             for j in range(nely):
-#                 y = nely * hy - j * hy
-#                 if rho[k, j, i] > 0.5: # USER DEFINED DISPLAY DENSITY THRESHOLD
-#                     vert = np.array([[x, y, z], [x, y - hx, z], [x + hx, y - hx, z], [x + hx, y, z], [x, y, z + hx], [x, y - hx, z + hx], [x + hx, y - hx, z + hx], [x + hx, y, z + hx]])
-#                     vert[:, [1, 2]] = vert[:, [2, 1]]
-#                     vert[:, 1] = -vert[:, 1]
-#                     colors = np.array([0.2+0.8 * (1 - rho(k, j, i)), 0.2+0.8 * (1 - rho(k, j, i)), 0.2+0.8 * (1 - rho(k, j, i))])                   
-#                     pc = art3d.Poly3DCollection(vert[face], facecolors=colors, edgecolor='black')
-#                     ax.add_collection(pc)
-#     plt.show()
-
 def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
     # USER DEFINED PRINT ORIENTATION
     baseplate = 'S'
     # USER DEFINED LOOP PARAMETERS
-    maxloop = 200
+    maxloop = 1000
     tolx = 0.01
     displayflag = 0
     # USER DEFINED MATERIAL PROPERTIES
@@ -111,6 +90,7 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
     fixednid = kf * (nelx + 1) * (nely + 1) + iif * (nely + 1) + (nely + 1 - jf)
     fixeddof = np.concatenate((3 * np.ravel(fixednid, order='F'), 3*np.ravel(fixednid, order='F')-1,
                         3*np.ravel(fixednid, order='F') - 2)) #CURRENTLY A 1D ARRAY (used for sparse later)
+
     # PREPARE FE ANALYSIS
     nele = nelx * nely * nelz
     ndof = 3 * (nelx + 1) * (nely + 1) * (nelz + 1)
@@ -134,6 +114,7 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
                     )), nele, 1))
     iK = np.reshape(np.kron(edofMat, np.ones((24, 1))).T, (24 * 24 * nele, 1), order='F')
     jK = np.reshape(np.kron(edofMat, np.ones((1, 24))).T, (24 * 24 * nele, 1), order='F')
+
     # PREPARE FILTER
     iH = np.ones((int(nele * (2 * (np.ceil(rmin) - 1) + 1)** 2), 1))
     iHdummy = []
@@ -156,11 +137,8 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
                                 jH[k] = e2
                                 sH[k] = max(0, rmin - np.sqrt((i1 - i2)** 2 + (j1 - j2)** 2 + (k1 - k2)** 2))
                             else:
-                                # iH = np.append(iH, [[e1]], 0)
                                 iHdummy.append(e1)
-                                # jH = np.append(jH, [[e2]], 0)
                                 jHdummy.append(e2)
-                                # sH = np.append(sH, [[max(0, rmin - np.sqrt((i1 - i2)** 2 + (j1 - j2)** 2 + (k1 - k2)** 2))]], 0)
                                 sHdummy.append(max(0, rmin - np.sqrt((i1 - i2)** 2 + (j1 - j2)** 2 + (k1 - k2)** 2)))
                             k = k + 1
     #####################
@@ -170,11 +148,12 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
 
     H = csr_matrix((np.squeeze(sH), (np.squeeze(iH.astype(int)) - 1, np.squeeze(jH.astype(int)) - 1)))
     Hs = csr_matrix.sum(H, axis=0).T
+
     if heaviside == 0:
         # INITIALIZE ITERATION
         x = np.tile(volfrac, [nelz, nely, nelx])
         xPhys = x
-        ######## AMFILTER CALL 1 #########
+        ######## AMFILTER CALL TYPE 1 #########
         xPrint, _ = AMFilter3D.AMFilter(xPhys, baseplate)
         ##################################
         loop = 0
@@ -187,12 +166,13 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
             K = csr_matrix((np.squeeze(sK), (np.squeeze(iK.astype(int)) - 1, np.squeeze(jK.astype(int)) - 1)))
             K = (K + K.T) / 2
             U[freedofs - 1,:] = spsolve(K[freedofs - 1,:][:, freedofs - 1], F[freedofs - 1,:])[np.newaxis].T 
+
             # OBJECTIVE FUNCTION AND SENSITIVITY ANALYSIS
             ce = np.reshape(np.sum((U[edofMat - 1].squeeze() @ KE) * U[edofMat - 1].squeeze(), axis=1), (nelz, nelx, nely), order = 'C').transpose(0,2,1)
             c = np.sum(np.sum(np.sum(Emin + xPrint ** penal * (E0 - Emin) * ce)))  # REPLACE xPhys with xPrint
             dc = -penal * (E0 - Emin) * (xPrint ** (penal - 1)) * ce               # REPLACE xPhys with xPrint
             dv = np.ones((nelz, nely, nelx))
-            ######### AMFILTER CALL 2 #########
+            ######### AMFILTER CALL TYPE 2 #########
             xPrint, senS = AMFilter3D.AMFilter(xPhys, baseplate, dc, dv)
             dc = senS[0]
             dv = senS[1]
@@ -200,6 +180,7 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
             # FILTERING AND MODIFICATION OF SENSITIVITIES
             dc = np.array((H @ (dc.transpose(0,2,1).ravel(order='C')[np.newaxis].T/Hs))).reshape((nelz, nelx, nely), order = 'C').transpose(0,2,1)
             dv = np.array((H @ (dv.transpose(0,2,1).ravel(order='C')[np.newaxis].T/Hs))).reshape((nelz, nelx, nely), order = 'C').transpose(0,2,1)
+
             # OPTIMALITY CRITERIA UPDATE
             l1 = 0
             l2 = 1e9
@@ -210,9 +191,8 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
                 xnew_step2 = np.minimum(1, xnew_step1)
                 xnew_step3 = np.maximum(x - move, xnew_step2)
                 xnew = np.maximum(0, xnew_step3)
-                # xnew = np.maximum(0, np.maximum(x - move, np.minimum(1, np.minimum(x + move, x * np.sqrt(-dc / dv / lmid)))))
                 xPhys = np.array((H @ (xnew.transpose(0,2,1).ravel(order='C')[np.newaxis].T)/Hs)).reshape((nelz, nelx, nely), order = 'C').transpose(0,2,1)
-                ######### AMFILTER CALL 1 ######
+                ######### AMFILTER CALL TYPE 1 ######
                 xPrint, _ = AMFilter3D.AMFilter(xPhys, baseplate)
                 #################################
                 if np.sum(xPrint.ravel(order='C')) > volfrac * nele:  # REPLACE xPhys with xPrint
@@ -229,12 +209,13 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
         x = np.tile(volfrac, [nelz, nely, nelx])
         xTilde = x
         xPhys = 1 - np.exp(-beta * xTilde) + xTilde * np.exp(-beta)
-        ######## AMFILTER CALL 1 #########
+        ######## AMFILTER CALL TYPE 1 #########
         xPrint, _ = AMFilter3D.AMFilter(xPhys, baseplate)
         ##################################
         loop = 0
         loopbeta = 0
         change = 1
+
         # START ITERATION
         while change > tolx and loop < maxloop:
             loop = loop + 1
@@ -245,12 +226,13 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
             K = csr_matrix((np.squeeze(sK), (np.squeeze(iK.astype(int)) - 1, np.squeeze(jK.astype(int)) - 1)))
             K = (K + K.T) / 2
             U[freedofs - 1,:] = spsolve(K[freedofs - 1,:][:, freedofs - 1], F[freedofs - 1,:])[np.newaxis].T 
+
             # OBJECTIVE FUNCTION AND SENSITIVITY ANALYSIS
             ce = np.reshape(np.sum((U[edofMat - 1].squeeze() @ KE) * U[edofMat - 1].squeeze(), axis=1), (nelz, nelx, nely), order = 'C').transpose(0,2,1)
             c = np.sum(np.sum(np.sum(Emin + xPrint ** penal * (E0 - Emin) * ce)))  # REPLACE xPhys with xPrint
             dc = -penal * (E0 - Emin) * (xPrint ** (penal - 1)) * ce               # REPLACE xPhys with xPrint
             dv = np.ones((nelz, nely, nelx))
-            ######### AMFILTER CALL 2 #########
+            ######### AMFILTER CALL TYPE 2 #########
             xPrint, senS = AMFilter3D.AMFilter(xPhys, baseplate, dc, dv)
             dc = senS[0]
             dv = senS[1]
@@ -263,6 +245,7 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
             dv = np.array((H @ (dv.transpose(0, 2, 1).ravel(order='C')[np.newaxis].T *
                                 dx.transpose(0, 2, 1).ravel(order='C')[np.newaxis].T
                                 /Hs))).reshape((nelz, nelx, nely), order = 'C').transpose(0,2,1)
+
             # OPTIMALITY CRITERIA UPDATE
             l1 = 0
             l2 = 1e9
@@ -273,10 +256,9 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
                 xnew_step2 = np.minimum(1, xnew_step1)
                 xnew_step3 = np.maximum(x - move, xnew_step2)
                 xnew = np.maximum(0, xnew_step3)
-                # xnew = np.maximum(0, np.maximum(x - move, np.minimum(1, np.minimum(x + move, x * np.sqrt(-dc / dv / lmid)))))
                 xTilde = np.array((H @ (xnew.transpose(0,2,1).ravel(order='C')[np.newaxis].T)/Hs)).reshape((nelz, nelx, nely), order = 'C').transpose(0,2,1)
                 xPhys = 1 - np.exp(-beta * xTilde) + xTilde * np.exp(-beta)
-                ######### AMFILTER CALL 1 ######
+                ######### AMFILTER CALL TYPE 1 ######
                 xPrint, _ = AMFilter3D.AMFilter(xPhys, baseplate)
                 #################################
                 if np.sum(xPrint.ravel(order='C')) > volfrac * nele:  # REPLACE xPhys with xPrint
@@ -293,13 +275,5 @@ def main(nelx, nely, nelz, volfrac, penal, rmin, heaviside):
                 
             print("it.: {0} , ch.: {1:.3f}, obj.: {2:.4f}, Vol.: {3:.3f}".format(
                 loop, change, c, np.mean(xPrint.ravel(order='C'))))
-    # np.save('xPrint.npy', xPrint) # save
-    # # 3D PLOT
-    # # convert numpy array to what pyvista wants
-    # data = pv.wrap(xPrint)
 
-    # # create plot
-    # p = pv.Plotter()
-    # p.add_volume(data)
-    # p.show()
     return xPrint

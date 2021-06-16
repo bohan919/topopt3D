@@ -10,7 +10,7 @@ dataNoAM = pv.wrap(xPrintNoAM)
 # data.set_active_scalars("Spatial Cell Data")
 # create plot
 p = pv.Plotter()
-p.add_volume(dataNoAM, cmap="turbo")
+p.add_volume(data, cmap="turbo")
 # p.add_volume(data, cmap="turbo", opacity="sigmoid_5")
 # p.add_mesh(data,cmap="viridis",show_edges=True)
 # data.plot(opacity='linear')

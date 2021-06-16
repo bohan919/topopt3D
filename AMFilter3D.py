@@ -1,4 +1,11 @@
-# TRANSLATED PYTHON FUNCTION FOR AMFilter.m by LANGELAAR
+# 3D AMFILTER PYTHON FUNCTION DEVELOPED FROM AMFilter.m by LANGELAAR
+# Developed by BOHAN PENG - IMPERIAL COLLEGE LONDON 2021 
+# For more details on the method, please refer to the FYP report associated
+
+# DISCLAIMER -                                                             #
+# The author reserves all rights but does not guaranty that the code is    #
+# free from errors. Furthermore, he shall not be liable in any event       #
+# caused by the use of the program.                                        #
 import numpy as np
 import numpy.matlib
 import scipy.sparse as sps
@@ -10,38 +17,17 @@ def AMFilter(x, baseplate, *args):
     #   [xi, df1dx, df2dx,...] = AMfilter(x, baseplate, df1dxi, df2dxi, ...)
     #       This includes also the transformation of design sensitivities
     # where
-    #   x : blueprint design (2D array), 0 <= x(i,j) <= 1
-    #   xi: printed design (2D array)
-    #   baseplate: character indicating baseplate orientation: 'N','E','S','W'
-    #              default orientation is 'S'
-    #              for 'X', the filter is inactive and just returns the input.
-    #   df1dx, df1dxi etc.:  design sensitivity (2D arrays)
+    #   x : blueprint design (3D array), 0 <= x(i,j) <= 1
+    #   xi: printed design (3D array)
+    #   df1dx, df1dxi etc.:  design sensitivity (3D arrays)
+
     #INTERNAL SETTINGS
     P = 40
     ep = 1e-4 
     xi_0 = 0.5 # parameters for smooth max/min functions
-    # INPUT CHECKS
-    if baseplate=='X':
-    # bypass option: filter does not modify the blueprint design
-        xi = x
-        varargout = args
-        return xi, varargout
-    baseplateUpper = baseplate.upper()
-    orientation = "SWNE"
-    nRot = orientation.find(baseplateUpper) 
-    nSens = max(0, len(args))
-
-    # Orientation
-    x = np.rot90(x, nRot, axes=(0,2))
+    nelz, nely, nelx = np.shape(x) 
     xi = np.zeros(np.shape(x))
-    lstArgs = list(args)
-    i = 0
-    for arg in lstArgs:
-        arg = np.rot90(arg, nRot,axes=(0,2))   
-        lstArgs[i] = arg
-        i = i+1
-    args = tuple(lstArgs)
-    nelz, nely, nelx = np.shape(x)
+    nSens = max(0, len(args))
 
     #AM Filter
     Ns = 5
@@ -54,8 +40,6 @@ def AMFilter(x, baseplate, *args):
 
     # Baseline: identity
     xi[:,nely-1,:] = x[:,nely-1,:]
-    # xiZ = np.zeros((nelz, nely, nelx))
-    # xiX = np.zeros((nelz, nely, nelx))
     for i in range(nely - 2, -1, -1):
         # compute maxima of current base row
         cbr = np.zeros((nelz + 2, 1, nelx + 2))
@@ -108,10 +92,9 @@ def AMFilter(x, baseplate, *args):
             for k in range(nSens):
                 dfx[k][:, i,:] = dfxi[k][:, i,:] + varLambda[:, k,:]
 
-    # ORIENTATION
-    xi = np.rot90(xi,-nRot, axes=(0,2))
+    # GENERATE OUTPUTS
     varargout = ()
     for s in range(nSens):
-        varargout = varargout + (np.rot90(dfx[s],-nRot,axes=(0,2)) ,)
+        varargout = varargout + (dfx[s] ,)
 
     return xi, varargout
