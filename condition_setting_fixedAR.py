@@ -1,9 +1,24 @@
+# Used to set the input conditions (domain size,vf,load,BC)
+# Inputs: (weight_factor doesn’t work for primary results and is a ‘fake’ input). 
+#   fnno represents the number of point force. 
+#   stype represents the boundary condition type, 
+#           where 0 for cantilever beam, 
+#                 1 for simply support beam, 
+#                 2 for constrained cantilever beam
+#                 3 for four nodes fixed BC. 
+
+# With the use of ‘condition_setting_fixedAR.py’, the input condition can be randomly picked following the conditions with the variables of 
+# (nelx, nely, nelz,il, jl, kl, fx, fy, fz, loadnid, volfrac, stype). 
+# nelx, nely and nelz are the element dimension in x, y and z direction respectively. il, jl, kl are the load node position. 
+# loadnid is the id of the load node with the formula provided in top3D. Volfrac is the volume fraction and stype is the boundary condition
+
+# To be used with top3DAM_final_strain_v3.py
+# Created by Hanyang Dai in June 2021
+
 import numpy as np
 import random
 
 def main(fnno,stype,weight_factor):
-    
-
     ar=1
     volfrac=round(np.random.normal(loc=0.4, scale=0.07, size=None),2)
     if volfrac <= 0.3:

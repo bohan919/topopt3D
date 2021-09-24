@@ -1,3 +1,11 @@
+# To generate support-free structures as well as the strain energy filed at the first iteration 
+
+# To be used with:
+#       condition_setting_fixedAR.py
+#       ‘trilinear_density.py (optional)
+
+# Created by Hanyang Dai in June 2021 (modified from top3DAM.py)
+
 import numpy as np
 # import numpy.matlib
 # import scipy.sparse as sps
